@@ -41,7 +41,7 @@ PLAY_REVIEW_CAPS = {
     "ae": 1000,
     "sg": 1000,
 }
-MAX_APPSTORE_RSS_PAGES = 0
+MAX_APPSTORE_RSS_PAGES = 10
 
 THEMES = {
     "Food Logging": ["food", "calorie", "calories", "meal", "log", "logging", "nutrition", "macro", "protein"],
@@ -188,10 +188,11 @@ def fetch_apple_rss_reviews(country):
     if MAX_APPSTORE_RSS_PAGES <= 0:
         return rows
     for page in range(1, MAX_APPSTORE_RSS_PAGES + 1):
-        url = f"https://itunes.apple.com/{country}/rss/customerreviews/id={APPLE_ID}/sortBy=mostRecent/json?page={page}"
+        url = f"https://itunes.apple.com/{country}/rss/customerreviews/page={page}/id={APPLE_ID}/sortby=mostrecent/json"
         try:
-            data = requests.get(url, timeout=30).json()
-        except Exception:
+            data = requests.get(url, timeout=30, headers={"User-Agent": "Mozilla/5.0"}).json()
+        except Exception as exc:
+            print(f"  {country}: App Store RSS page {page} failed: {exc}", flush=True)
             break
         entries = data.get("feed", {}).get("entry", [])
         if not entries:
@@ -220,6 +221,7 @@ def fetch_apple_rss_reviews(country):
             added += 1
         if added == 0:
             break
+        print(f"  {country}: {len(rows)} App Store RSS reviews", flush=True)
     return rows
 
 
@@ -396,7 +398,7 @@ def build():
             "India vs outside India uses sampled public storefronts: IN, US, GB, AU, AE, SG.",
             "Google Play exposes install bands, not exact downloads.",
             "Apple does not expose public downloads.",
-            "Apple review RSS did not respond reliably for Healthify from this environment; App Store rating snapshots and visible review cards are used where available.",
+            "Apple App Store reviews use the public RSS customer review feed where available; Apple does not expose full private review history or downloads.",
             "Trustpilot blocked direct public scraping from this environment during this build; the dashboard records that source availability explicitly.",
         ],
     }
