@@ -1,5 +1,7 @@
 import json
 import re
+import socket
+import time
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
@@ -9,6 +11,8 @@ from bs4 import BeautifulSoup
 from google_play_scraper import Sort, app as gp_app, reviews
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
+
+socket.setdefaulttimeout(25)
 
 BASE = Path(__file__).resolve().parents[1]
 DATA_DIR = BASE / "data"
@@ -29,7 +33,14 @@ COUNTRIES = {
     "ae": {"label": "United Arab Emirates", "bucket": "Outside India"},
     "sg": {"label": "Singapore", "bucket": "Outside India"},
 }
-MAX_PLAY_REVIEWS_PER_COUNTRY = 900
+PLAY_REVIEW_CAPS = {
+    "in": 10000,
+    "us": 1000,
+    "gb": 1000,
+    "au": 1000,
+    "ae": 1000,
+    "sg": 1000,
+}
 MAX_APPSTORE_RSS_PAGES = 0
 
 THEMES = {
@@ -97,15 +108,26 @@ def fetch_play_reviews(country):
     token = None
     seen = set()
     zero_batches = 0
-    while len(rows) < MAX_PLAY_REVIEWS_PER_COUNTRY:
-        batch, token = reviews(
-            PLAY_ID,
-            lang="en",
-            country=country,
-            sort=Sort.NEWEST,
-            count=min(200, MAX_PLAY_REVIEWS_PER_COUNTRY - len(rows)),
-            continuation_token=token,
-        )
+    failed_batches = 0
+    cap = PLAY_REVIEW_CAPS.get(country, 1000)
+    while len(rows) < cap:
+        try:
+            batch, token = reviews(
+                PLAY_ID,
+                lang="en",
+                country=country,
+                sort=Sort.NEWEST,
+                count=min(200, cap - len(rows)),
+                continuation_token=token,
+            )
+        except Exception as exc:
+            failed_batches += 1
+            print(f"  {country}: review batch failed ({failed_batches}/3): {exc}", flush=True)
+            if failed_batches >= 3:
+                break
+            time.sleep(2)
+            continue
+        failed_batches = 0
         if not batch:
             zero_batches += 1
             if zero_batches >= 2 or not token:
@@ -135,9 +157,12 @@ def fetch_play_reviews(country):
                 "version": item.get("appVersion") or item.get("reviewCreatedVersion"),
             })
             new_count += 1
+            if len(rows) >= cap:
+                break
         if new_count == 0 or not token:
             break
-    return rows
+        print(f"  {country}: {len(rows)}/{cap} Play reviews", flush=True)
+    return rows[:cap]
 
 
 def fetch_apple_meta(country):
@@ -243,6 +268,22 @@ def fetch_apple_reviews(country):
     return list(by_id.values())
 
 
+def dedupe_reviews(rows):
+    seen = set()
+    deduped = []
+    for row in rows:
+        key = (
+            row.get("source"),
+            row.get("review_id")
+            or f"{row.get('country')}|{row.get('author')}|{row.get('title')}|{row.get('date')}|{row.get('content')}"
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(row)
+    return deduped
+
+
 def fetch_trustpilot():
     sources = []
     reviews_out = []
@@ -332,6 +373,7 @@ def build():
     trust_sources, trust_reviews = fetch_trustpilot()
     sources.extend(trust_sources)
     reviews_out.extend(trust_reviews)
+    reviews_out = dedupe_reviews(reviews_out)
 
     rating_counts = Counter(str(int(r["rating"])) for r in reviews_out if r.get("rating"))
     theme_counts = Counter(r.get("theme_primary") or "General" for r in reviews_out)
@@ -354,6 +396,7 @@ def build():
             "India vs outside India uses sampled public storefronts: IN, US, GB, AU, AE, SG.",
             "Google Play exposes install bands, not exact downloads.",
             "Apple does not expose public downloads.",
+            "Apple review RSS did not respond reliably for Healthify from this environment; App Store rating snapshots and visible review cards are used where available.",
             "Trustpilot blocked direct public scraping from this environment during this build; the dashboard records that source availability explicitly.",
         ],
     }

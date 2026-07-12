@@ -22,26 +22,31 @@ function visibleReviews() {
   });
 }
 
-function renderStats(reviews) {
-  const ratings = reviews.map(r => Number(r.rating)).filter(Boolean);
-  const avg = ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null;
-  const negative = ratings.filter(v => v <= 2).length;
-  const sources = new Set(reviews.map(r => r.source)).size;
-  document.querySelector('#status-row').innerHTML = `
-    <div class="stat"><span>Reviews Captured</span><strong>${n(reviews.length)}</strong></div>
-    <div class="stat"><span>Avg Captured Rating</span><strong>${rating(avg)}</strong></div>
-    <div class="stat"><span>1-2 Star Share</span><strong>${ratings.length ? Math.round((negative / ratings.length) * 100) : 0}%</strong></div>
-    <div class="stat"><span>Sources Active</span><strong>${sources}</strong></div>
-  `;
-}
-
-function renderSources() {
+function visibleSources() {
   const f = filters();
-  const rows = DATA.sources.filter(s => {
+  return DATA.sources.filter(s => {
     if (f.region !== 'All' && s.region_bucket !== f.region) return false;
     if (f.source !== 'All' && s.source !== f.source) return false;
     return true;
   });
+}
+
+function renderStats(reviews, sources) {
+  const ratings = reviews.map(r => Number(r.rating)).filter(Boolean);
+  const avg = ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null;
+  const negative = ratings.filter(v => v <= 2).length;
+  const storeRatings = sources.map(s => Number(s.rating)).filter(Boolean);
+  const storeAvg = storeRatings.length ? storeRatings.reduce((a, b) => a + b, 0) / storeRatings.length : null;
+  const ratingCount = sources.reduce((sum, s) => sum + (Number(s.rating_count) || 0), 0);
+  document.querySelector('#status-row').innerHTML = `
+    <div class="stat"><span>Reviews Captured</span><strong>${n(reviews.length)}</strong></div>
+    <div class="stat"><span>Store Avg Rating</span><strong>${rating(storeAvg)}</strong></div>
+    <div class="stat"><span>Store Rating Count</span><strong>${n(ratingCount)}</strong></div>
+    <div class="stat"><span>1-2 Star Share</span><strong>${ratings.length ? Math.round((negative / ratings.length) * 100) : 0}%</strong></div>
+  `;
+}
+
+function renderSources(rows) {
   document.querySelector('#source-table tbody').innerHTML = rows.map(s => `
     <tr><td>${s.source}</td><td>${s.region_label}</td><td>${rating(s.rating)}</td><td>${n(s.rating_count)}</td><td>${n(s.review_count)}</td><td>${s.install_band || s.note || ''}</td></tr>
   `).join('');
@@ -80,8 +85,9 @@ function renderReviews(reviews) {
 
 function render() {
   const reviews = visibleReviews();
-  renderStats(reviews);
-  renderSources();
+  const sources = visibleSources();
+  renderStats(reviews, sources);
+  renderSources(sources);
   renderRatings(reviews);
   renderThemes(reviews);
   renderVisuals();
