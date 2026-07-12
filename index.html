@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Healthify Reputation Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Healthify / HealthifyMe</p>
+        <h1>Public Reputation Dashboard</h1>
+      </div>
+      <div class="controls">
+        <label>Region <select id="region-filter"><option value="All">All</option><option value="India">India</option><option value="Outside India">Outside India</option></select></label>
+        <label>Source <select id="source-filter"><option value="All">All</option><option value="Google Play">Google Play</option><option value="App Store">App Store</option><option value="Trustpilot">Trustpilot</option></select></label>
+      </div>
+    </header>
+
+    <section class="status-row" id="status-row"></section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Source Snapshot</h2>
+        <span id="generated-at"></span>
+      </div>
+      <div class="table-wrap">
+        <table id="source-table">
+          <thead><tr><th>Source</th><th>Region</th><th>Rating</th><th>Rating Count</th><th>Reviews Captured</th><th>Install / Note</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="grid two">
+      <div class="panel">
+        <h2>Rating Distribution</h2>
+        <div id="rating-bars" class="bars"></div>
+      </div>
+      <div class="panel">
+        <h2>Top Review Themes</h2>
+        <div id="theme-chips" class="chips"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Store Visuals</h2>
+      </div>
+      <div id="visuals" class="visuals"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head review-head">
+        <div>
+          <h2>Review Explorer</h2>
+          <p>Filtered public review text from the sources we could access.</p>
+        </div>
+        <input id="query" type="search" placeholder="Search reviews">
+      </div>
+      <div id="reviews" class="reviews"></div>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
